@@ -1,8 +1,8 @@
 # Snapshot
 
-Snapshot is a simple library for snapshot testing in Go.  It is useful for testing complex command-line applications when you are interested in finding regressions to the UI.  When you run a test for the first time, the output is written to a snapshot file.  Subsequent tests ensure that test output matches your snapshot.  This can detect regressions in the UI when you are refactoring. 
+Snapshot is a simple library for snapshot testing in Go.  I find it useful for testing complex command-line applications when I'm interested in finding regressions to the UI.  When you run a test for the first time, the output is written to a snapshot file.  Subsequent tests ensure that test output matches your snapshot.
 
-```
+```go
 package example
 
 import (
@@ -45,7 +45,7 @@ UPDATE_SNAPSHOTS=true go test -v -cover
 
 By default, snapshots are saved in the `__snapshots__` directory relative to the working directory where you run `go test`.  To change this behavior, you can create your own configuration prior to running your snapshot assertions.  The snapshot directory should be the full path.  You can also change the number of lines of context that are shown around your diffs.
 
-```
+```go
 import (
 	"testing"
 
