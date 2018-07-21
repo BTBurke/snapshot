@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/pmezard/go-difflib/difflib"
 )
 
@@ -64,12 +65,20 @@ func ContextLines(n int) ConfigOption {
 // output does not match, the test will fail and a diff will be shown.  To update your snapshots, set
 // `UPDATE_SNAPSHOTS=true` when running your test suite.  The default config stores snapshots in `__snapshots__` relative
 // to the test directory.
-func Assert(t testing.TB, b []byte) {
+func Assert(t testing.TB, b interface{}) {
 	c, err := New()
 	if err != nil {
 		t.Fatalf("Unable to create new snapshot config: %s", err)
 	}
-	c.Assert(t, b)
+	switch b.(type) {
+	case []byte:
+		c.Assert(t, b.([]byte))
+	default:
+		buf := new(bytes.Buffer)
+		spew.Fdump(buf, b)
+		c.Assert(t, buf.Bytes())
+	}
+
 }
 
 // Assert compares the output in b to the snapshot saved for the current test.  If the snapshot file does not
