@@ -75,7 +75,10 @@ func Assert(t testing.TB, b interface{}) {
 		c.Assert(t, b.([]byte))
 	default:
 		buf := new(bytes.Buffer)
-		spew.Fdump(buf, b)
+		scs := spew.ConfigState{
+			DisablePointerAddresses: true,
+		}
+		scs.Fdump(buf, b)
 		c.Assert(t, buf.Bytes())
 	}
 
