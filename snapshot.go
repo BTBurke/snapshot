@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"log"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/pmezard/go-difflib/difflib"
@@ -158,6 +159,7 @@ func (c *Config) Assert(t testing.TB, b []byte) {
 			}
 			// check if diff is expected
 			m := c.ignore.FindStringIndex(diff)
+			log.Println(m)
 			if m != nil {
 				return
 			}
