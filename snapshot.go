@@ -158,7 +158,7 @@ func (c *Config) Assert(t testing.TB, b []byte) {
 			}
 			// check if diff is expected
 			m := c.ignore.FindStringIndex(diff)
-			if m != nil && m[0] == 0 && m[1] == len(diff) {
+			if m != nil {
 				return
 			}
 			t.Fatalf("Snapshot test failed for: %s.  Diff:\n\n%s", t.Name(), diff)
