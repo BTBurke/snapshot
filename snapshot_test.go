@@ -23,7 +23,7 @@ func TestDiff(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.Name, func(t *testing.T) {
-			diff, err := getDiff([]byte(tc.Exp), []byte(tc.Recv))
+			diff, err := getDiff([]byte(tc.Exp), []byte(tc.Recv), 10)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.Diff, diff, "Expected diff:\n%s\nGot:\n%s\n", tc.Diff, diff)
 		})

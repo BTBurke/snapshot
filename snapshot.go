@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -21,6 +22,8 @@ type Config struct {
 	Context int
 	// Whether output is diffable (false for binary file formats)
 	Diffable bool
+	// a regex diff to ignore (for stateful diffs, e.g., creation dates)
+	ignore *regexp.Regexp
 }
 
 // ConfigOption is a functional option that sets config values
@@ -66,6 +69,17 @@ func ContextLines(n int) ConfigOption {
 func Diffable(b bool) ConfigOption {
 	return func(c *Config) error {
 		c.Diffable = b
+		return nil
+	}
+}
+
+func IgnoreRegex(r string) ConfigOption {
+	return func(c *Config) error {
+		reg, err := regexp.Compile(r)
+		if err != nil {
+			return err
+		}
+		c.ignore = reg
 		return nil
 	}
 }
@@ -138,9 +152,14 @@ func (c *Config) Assert(t testing.TB, b []byte) {
 		}
 		switch {
 		case c.Diffable:
-			diff, err := getDiff(expected, b)
+			diff, err := getDiff(expected, b, c.Context)
 			if err != nil {
 				t.Fatalf("Unable to compare snapshot to test output: %s", err)
+			}
+			// check if diff is expected
+			m := c.ignore.FindStringIndex(diff)
+			if m != nil && m[0] == 0 && m[1] == len(diff) {
+				return
 			}
 			t.Fatalf("Snapshot test failed for: %s.  Diff:\n\n%s", t.Name(), diff)
 		default:
@@ -175,13 +194,13 @@ func getSnapFilename(testname string) string {
 	return r.Replace(strings.ToLower(testname)) + ".snap"
 }
 
-func getDiff(expected []byte, b []byte) (string, error) {
+func getDiff(expected []byte, b []byte, context int) (string, error) {
 	diff := difflib.UnifiedDiff{
 		A:        difflib.SplitLines(string(expected)),
 		B:        difflib.SplitLines(string(b)),
 		FromFile: "Expected",
 		ToFile:   "Received",
-		Context:  10,
+		Context:  context,
 	}
 	return difflib.GetUnifiedDiffString(diff)
 }
