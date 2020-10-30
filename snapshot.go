@@ -19,6 +19,8 @@ type Config struct {
 	Directory string
 	// Number of lines of context to show with snapshot diffs
 	Context int
+	// Whether output is diffable (false for binary file formats)
+	Diffable bool
 }
 
 // ConfigOption is a functional option that sets config values
@@ -35,6 +37,7 @@ func New(options ...ConfigOption) (*Config, error) {
 	c := &Config{
 		Directory: path.Join(wd, "__snapshots__"),
 		Context:   10,
+		Diffable: true,
 	}
 	for _, opt := range options {
 		if err := opt(c); err != nil {
@@ -56,6 +59,13 @@ func SnapDirectory(dir string) ConfigOption {
 func ContextLines(n int) ConfigOption {
 	return func(c *Config) error {
 		c.Context = n
+		return nil
+	}
+}
+
+func Diffable(b bool) ConfigOption {
+	return func(c *Config) error {
+		c.Diffable = b
 		return nil
 	}
 }
@@ -126,11 +136,16 @@ func (c *Config) Assert(t testing.TB, b []byte) {
 			}
 			return
 		}
-		diff, err := getDiff(expected, b)
-		if err != nil {
-			t.Fatalf("Unable to compare snapshot to test output: %s", err)
+		switch {
+		case c.Diffable:
+			diff, err := getDiff(expected, b)
+			if err != nil {
+				t.Fatalf("Unable to compare snapshot to test output: %s", err)
+			}
+			t.Fatalf("Snapshot test failed for: %s.  Diff:\n\n%s", t.Name(), diff)
+		default:
+			t.Fatalf("Snapshot test failed for: %s.  Diff: (undiffable binary format)", t.Name())
 		}
-		t.Fatalf("Snapshot test failed for: %s.  Diff:\n\n%s", t.Name(), diff)
 	}
 }
 
