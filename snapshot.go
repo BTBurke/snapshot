@@ -22,6 +22,8 @@ type Config struct {
 	Context int
 	// Whether output is diffable (false for binary file formats)
 	Diffable bool
+	// Extension of the snap recording test file.  Can be useful if test file is a binary format and you want to inspect it manually (e.g., images).  Defaults to .snap.
+	Extension string
 	// a regex diff to ignore (for stateful diffs, e.g., creation dates)
 	ignore *regexp.Regexp
 }
@@ -40,7 +42,8 @@ func New(options ...ConfigOption) (*Config, error) {
 	c := &Config{
 		Directory: path.Join(wd, "__snapshots__"),
 		Context:   10,
-		Diffable: true,
+		Diffable:  true,
+		Extension: ".snap",
 	}
 	for _, opt := range options {
 		if err := opt(c); err != nil {
@@ -66,6 +69,8 @@ func ContextLines(n int) ConfigOption {
 	}
 }
 
+// Diffable indicates whether a meaningful diff can be shown for the test case.  Defaults to true but can be set
+// to false for binary file formats (e.g., images, PDF files, etc.)
 func Diffable(b bool) ConfigOption {
 	return func(c *Config) error {
 		c.Diffable = b
@@ -73,6 +78,9 @@ func Diffable(b bool) ConfigOption {
 	}
 }
 
+// IgnoreRegex sets a regex on the diff output which will ignore stateful changes in the output that should not be
+// considered test failures.  For example, PDF files embed creation dates that will change from test to test but can
+// be ignored with an appropriate regex.
 func IgnoreRegex(r string) ConfigOption {
 	return func(c *Config) error {
 		reg, err := regexp.Compile(r)
@@ -80,6 +88,14 @@ func IgnoreRegex(r string) ConfigOption {
 			return err
 		}
 		c.ignore = reg
+		return nil
+	}
+}
+
+// SnapExtension changes the extension of the snap test files to `ext` instead of the default .snap
+func SnapExtension(ext string) ConfigOption {
+	return func(c *Config) error {
+		c.Extension = ext
 		return nil
 	}
 }
@@ -124,7 +140,7 @@ func (c *Config) Assert(t testing.TB, b []byte) {
 			if err := os.MkdirAll(c.Directory, os.FileMode(0777)); err != nil {
 				t.Fatalf("Unable to create the snapshot directory, failing")
 			}
-			if err := createSnapshot(t.Name(), b, c.Directory); err != nil {
+			if err := createSnapshot(t.Name(), b, c.Directory, c.Extension); err != nil {
 				t.Fatalf("Unable to create snapshot: %s", err)
 			}
 			return
@@ -133,9 +149,9 @@ func (c *Config) Assert(t testing.TB, b []byte) {
 		}
 	}
 
-	expected, err := readSnapshot(t.Name(), c.Directory)
+	expected, err := readSnapshot(t.Name(), c.Directory, c.Extension)
 	if err != nil {
-		if err := createSnapshot(t.Name(), b, c.Directory); err != nil {
+		if err := createSnapshot(t.Name(), b, c.Directory, c.Extension); err != nil {
 			t.Fatalf("Unable to create snapshot: %s", err)
 		}
 		return
@@ -145,7 +161,7 @@ func (c *Config) Assert(t testing.TB, b []byte) {
 		return
 	default:
 		if isUpdateable() {
-			if err := createSnapshot(t.Name(), b, c.Directory); err != nil {
+			if err := createSnapshot(t.Name(), b, c.Directory, c.Extension); err != nil {
 				t.Fatalf("Unable to create snapshot: %s", err)
 			}
 			return
@@ -173,8 +189,8 @@ func isUpdateable() bool {
 	return ok
 }
 
-func createSnapshot(testname string, b []byte, dir string) error {
-	snapFile := getSnapFilename(testname)
+func createSnapshot(testname string, b []byte, dir string, ext string) error {
+	snapFile := getSnapFilename(testname, ext)
 	f, err := os.Create(path.Join(dir, snapFile))
 	if err != nil {
 		return err
@@ -185,13 +201,13 @@ func createSnapshot(testname string, b []byte, dir string) error {
 	return f.Close()
 }
 
-func readSnapshot(testname string, dir string) ([]byte, error) {
-	return ioutil.ReadFile(path.Join(dir, getSnapFilename(testname)))
+func readSnapshot(testname string, dir string, ext string) ([]byte, error) {
+	return ioutil.ReadFile(path.Join(dir, getSnapFilename(testname, ext)))
 }
 
-func getSnapFilename(testname string) string {
+func getSnapFilename(testname string, ext string) string {
 	r := strings.NewReplacer("'", "-", " ", "-", "<", "-", ">", "-", "&", "-", "#", "-", "/", "-", "\\", "-")
-	return r.Replace(strings.ToLower(testname)) + ".snap"
+	return r.Replace(strings.ToLower(testname)) + ext
 }
 
 func getDiff(expected []byte, b []byte, context int) (string, error) {
